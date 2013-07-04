@@ -1,4 +1,4 @@
-//jshint browser: true
+//jshint browser: true, devel: true
 /*global self: true */
 /**
  * Trim a string
@@ -17,9 +17,9 @@ function trim(str) {
  *
  * @param {String} val value to translate.
  * @param {String} src source mask.
- * @param {String} dst dest mask
+ * @param {String} dst dest mask.
  *
- * @return {String}
+ * @return {String} translated string.
  */
 function _(val, src, dst) {
   "use strict";
@@ -35,38 +35,39 @@ function _(val, src, dst) {
 /**
  * Get a snapshot of all text nodes
  *
- * @return {Array}
+ * @return {Array} Snapshot of all text nodes.
  */
 function getStrings() {
   "use strict";
   return document.evaluate("//text()", document.body, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
 }
 /**
- * Extract strings
+ * Extract all strings from current page
  *
+ * @return {Array} Array of all text strings.
  */
 function extract() {
   //jshint maxdepth: 5, maxcomplexity: 15, maxstatements: 30
   "use strict";
   var snapshot = getStrings(),
       node, tag, value, res, i;
-  res = '#\n# Translation of ' + window.location + "\n#\n\n\n";
+  res = [];
   for (i = 0 ; i < snapshot.snapshotLength; i++) {
     node = snapshot.snapshotItem(i);
     tag = node.parentElement.tagName;
     if (tag !== 'SCRIPT' && tag !== 'STYLE') {
       value = trim(node.nodeValue);
       if (value !== '') {
-        res += '#\n' + 'msgid "' + value + '"\nmsgstr ""\n\n';
+        res.push(value);
       }
     }
   }
-  self.port.emit('extracted', res);
+  return res;
 }
 /**
  * Translate strings
  *
- * @param {Object} datas  dictionnary
+ * @param {Object} datas  dictionnary.
  */
 function translate(datas) {
   //jshint maxdepth: 5, maxcomplexity: 15, maxstatements: 30
@@ -80,12 +81,10 @@ function translate(datas) {
       value = trim(node.nodeValue);
       if (value !== '') {
         translated = datas[value];
-        if (typeof translated !== 'undefined') {
-          if (trim(translated) !== '') {
-            trimmed = node.nodeValue.match(/(^\s*)\S.*\S(\s*)$/);
+        if (typeof translated === 'string' && trim(translated) !== '') {
+          trimmed = node.nodeValue.match(/(^\s*)\S.*\S(\s*)$/);
+          if (trimmed !== null) {
             node.nodeValue = trimmed[1] + _(translated, value, translated) + trimmed[2];
-          } else {
-            console.log("No translation found for \"" + value + "\"");
           }
         } else {
           console.log("No translation found for \"" + value + "\"");
@@ -97,7 +96,9 @@ function translate(datas) {
 
 self.port.on('extract', function doExtract() {
   "use strict";
-  extract();
+  var extracted;
+  extracted = extract();
+  self.port.emit('extracted', extracted);
 });
 self.port.on('translate', function doTranslate(datas) {
   "use strict";

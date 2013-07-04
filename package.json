@@ -5,6 +5,13 @@
   "description": "Client-side l10n experiment",
   "author": "Clochix (http://clochix.net)",
   "license": "GPL",
-  "version": "0.1",
-  "homepage": "https://github.com/clochix/lionish/"
+  "version": "0.2.a",
+  "homepage": "https://github.com/clochix/lionish/",
+  "preferences": [{
+    "name": "APIKey",
+    "title": "API Key",
+    "description": "API Key of Yandex Translate",
+    "type": "string",
+    "value": ""
+  }]
 }
