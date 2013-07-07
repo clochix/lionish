@@ -50,19 +50,34 @@ function extract() {
   //jshint maxdepth: 5, maxcomplexity: 15, maxstatements: 30
   "use strict";
   var snapshot = getStrings(),
-      node, tag, value, res, i;
-  res = [];
+      node, tag, res, i, reg;
+  res = {};
+  reg = new RegExp(['\\?', ',', '\\.', ';', ':', '!', '\\d', '\\(', '\\)', '\\[', '\\]', '\\+', '\\-'].join('|'), 'gim');
+  function addValue(val) {
+    val = trim(val);
+    if (val !== '' && trim(val.replace(reg, '')) !== '') {
+      res[val.replace(/\d+/g, "%%")] = true;
+    }
+  }
   for (i = 0 ; i < snapshot.snapshotLength; i++) {
     node = snapshot.snapshotItem(i);
     tag = node.parentElement.tagName;
-    if (tag !== 'SCRIPT' && tag !== 'STYLE') {
-      value = trim(node.nodeValue);
-      if (value !== '') {
-        res.push(value);
-      }
+    if (tag !== 'SCRIPT' && tag !== 'STYLE' && tag !== 'NOSCRIPT') {
+      addValue(node.nodeValue);
     }
   }
-  return res;
+  Array.prototype.forEach.call(document.querySelectorAll('[alt],[placeholder][title]'), function onElement(e) {
+    if (e.alt) {
+      addValue(e.alt);
+    }
+    if (e.placeholder) {
+      addValue(e.placeholder);
+    }
+    if (e.title) {
+      addValue(e.title);
+    }
+  });
+  return Object.keys(res);
 }
 /**
  * Translate strings
@@ -73,25 +88,54 @@ function translate(datas) {
   //jshint maxdepth: 5, maxcomplexity: 15, maxstatements: 30
   "use strict";
   var snapshot = getStrings(),
-      node, tag, value, translated, i, trimmed;
+      node, tag, value, translated, i, trimmed, reg;
+  reg = new RegExp(['\\?', ',', '\\.', ';', ':', '!', '\\d', '\\(', '\\)', '\\[', '\\]', '\\+', '\\-'].join('|'), 'gim');
+  function trVal(val) {
+    var res = false;
+    val = trim(val);
+    if (val !== '' && trim(val.replace(reg, '')) !== '') {
+      translated = datas[val];
+      if (typeof translated === 'string' && trim(translated) !== '') {
+        trimmed = node.nodeValue.match(/(^\s*)\S.*\S(\s*)$/);
+        if (trimmed !== null) {
+          res = trimmed[1] + _(translated, val, translated) + trimmed[2];
+        }
+      } else {
+        console.log("No translation found for \"" + val + "\"");
+      }
+    }
+    return res;
+  }
   for (i = 0 ; i < snapshot.snapshotLength; i++) {
     node = snapshot.snapshotItem(i);
     tag = node.parentElement.tagName;
     if (tag !== 'SCRIPT' && tag !== 'STYLE') {
-      value = trim(node.nodeValue);
-      if (value !== '') {
-        translated = datas[value];
-        if (typeof translated === 'string' && trim(translated) !== '') {
-          trimmed = node.nodeValue.match(/(^\s*)\S.*\S(\s*)$/);
-          if (trimmed !== null) {
-            node.nodeValue = trimmed[1] + _(translated, value, translated) + trimmed[2];
-          }
-        } else {
-          console.log("No translation found for \"" + value + "\"");
-        }
+      value = trVal(node.nodeValue);
+      if (value) {
+        node.nodeValue = value;
       }
     }
   }
+  Array.prototype.forEach.call(document.querySelectorAll('[alt],[placeholder],[title]'), function onElement(e) {
+    if (e.alt) {
+      value = trVal(e.alt);
+      if (value) {
+        e.alt = value;
+      }
+    }
+    if (e.placeholder) {
+      value = trVal(e.title);
+      if (value) {
+        e.placeholder = value;
+      }
+    }
+    if (e.title) {
+      value = trVal(e.title);
+      if (value) {
+        e.title = value;
+      }
+    }
+  });
 }
 
 self.port.on('extract', function doExtract() {
